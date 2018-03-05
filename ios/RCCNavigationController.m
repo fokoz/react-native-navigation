@@ -25,76 +25,49 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
   return [self supportedControllerOrientations];
 }
 
-- (void)dealloc
-{
-  [_panRecognizer removeTarget:self action:@selector(pan:)];
-  [_navigationController.view removeGestureRecognizer:_panRecognizer];
-}
-
 - (instancetype)initWithProps:(NSDictionary *)props children:(NSArray *)children globalProps:(NSDictionary*)globalProps bridge:(RCTBridge *)bridge
 {
   _queuedViewController = nil;
-
+  
   NSString *component = props[@"component"];
   if (!component) return nil;
-
+  
   NSDictionary *passProps = props[@"passProps"];
   NSDictionary *navigatorStyle = props[@"style"];
-
+  
   RCCViewController *viewController = [[RCCViewController alloc] initWithComponent:component passProps:passProps navigatorStyle:navigatorStyle globalProps:globalProps bridge:bridge];
   if (!viewController) return nil;
   viewController.controllerId = props[@"id"];
-
+  
   NSArray *leftButtons = props[@"leftButtons"];
   if (leftButtons)
   {
     [self setButtons:leftButtons viewController:viewController side:@"left" animated:NO];
   }
-
+  
   NSArray *rightButtons = props[@"rightButtons"];
   if (rightButtons)
   {
     [self setButtons:rightButtons viewController:viewController side:@"right" animated:NO];
   }
-
+  
   self = [super initWithRootViewController:viewController];
   if (!self) return nil;
   self.delegate = self;
-
+  
   self.navigationBar.translucent = NO; // default
-
-  _navigationController = self;
-  [self commonInit];
-
+  
   [self processTitleView:viewController
                    props:props
                    style:navigatorStyle];
-
+  
 
   [self setRotation:props];
-
+    
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(contentDidAppear:) name:RCTContentDidAppearNotification object:nil];
 
   return self;
 }
-
-- (void)awakeFromNib
-{
-  [super awakeFromNib];
-  [self commonInit];
-}
-
-- (void)commonInit
-{
-  RCCDirectionalPanGestureRecognizer *panRecognizer = [[RCCDirectionalPanGestureRecognizer alloc] initWithTarget:self action:@selector(pan:)];
-  panRecognizer.direction = RCCPanDirectionRight;
-  panRecognizer.maximumNumberOfTouches = 1;
-  panRecognizer.delegate = self;
-  [_navigationController.view addGestureRecognizer:panRecognizer];
-  _panRecognizer = panRecognizer;
-
-  _animator = [[RCCAnimator alloc] init];
-  _animator.delegate = self;
 
 - (void)contentDidAppear:(NSNotification *)note{
   NSLog(@"contentDidAppear, transitioning: %@ rendering: %@", @(_transitioning), @(_rendering));
@@ -105,16 +78,15 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
       if (![[_queuedViewController[@"viewController"] view] isEqual: note.object]) {
         return;
       }
-
+      
       RCCViewController* vc = _queuedViewController[@"viewController"];
       BOOL animated = [_queuedViewController[@"animated"] boolValue];
-
+    
       _transitioning = NO;
-
+      
       [self pushViewController:vc animated:animated];
     }
   });
-
 }
 
 - (void)performAction:(NSString*)performAction actionParams:(NSDictionary*)actionParams bridge:(RCTBridge *)bridge
@@ -126,22 +98,22 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
   {
     NSString *component = actionParams[@"component"];
     if (!component) return;
-
+    
     NSMutableDictionary *passProps = [actionParams[@"passProps"] mutableCopy];
     passProps[GLOBAL_SCREEN_ACTION_COMMAND_TYPE] = COMMAND_TYPE_PUSH;
     passProps[GLOBAL_SCREEN_ACTION_TIMESTAMP] = actionParams[GLOBAL_SCREEN_ACTION_TIMESTAMP];
     NSDictionary *navigatorStyle = actionParams[@"style"];
-
+    
     NSNumber *keepStyleAcrossPush = [[RCCManager sharedInstance] getAppStyle][@"keepStyleAcrossPush"];
     BOOL keepStyleAcrossPushBool = keepStyleAcrossPush ? [keepStyleAcrossPush boolValue] : YES;
-
+    
     if (keepStyleAcrossPushBool) {
-
+      
       if ([self.topViewController isKindOfClass:[RCCViewController class]])
       {
         RCCViewController *parent = (RCCViewController*)self.topViewController;
         NSMutableDictionary *mergedStyle = [NSMutableDictionary dictionaryWithDictionary:parent.navigatorStyle];
-
+        
         // there are a few styles that we don't want to remember from our parent (they should be local)
         [mergedStyle removeObjectForKey:@"navBarHidden"];
         [mergedStyle removeObjectForKey:@"statusBarHidden"];
@@ -155,23 +127,22 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
         [mergedStyle removeObjectForKey:@"autoAdjustScrollViewInsets"];
         [mergedStyle removeObjectForKey:@"statusBarTextColorSchemeSingleScreen"];
         [mergedStyle removeObjectForKey:@"disabledBackGesture"];
-        [mergedStyle removeObjectForKey:@"enabledBackGestureFullScreen"];
         [mergedStyle removeObjectForKey:@"disabledSimultaneousGesture"];
         [mergedStyle removeObjectForKey:@"navBarCustomView"];
         [mergedStyle removeObjectForKey:@"navBarComponentAlignment"];
-
+        
         [mergedStyle addEntriesFromDictionary:navigatorStyle];
         navigatorStyle = mergedStyle;
       }
     }
-
+    
     RCCViewController *viewController = [[RCCViewController alloc] initWithComponent:component passProps:passProps navigatorStyle:navigatorStyle globalProps:nil bridge:bridge];
     viewController.controllerId = passProps[@"screenInstanceID"];
-
+    
     [self processTitleView:viewController
                      props:actionParams
                      style:navigatorStyle];
-
+    
     NSString *backButtonTitle = actionParams[@"backButtonTitle"];
     if (backButtonTitle)
     {
@@ -179,40 +150,40 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
                                                                    style:UIBarButtonItemStylePlain
                                                                   target:nil
                                                                   action:nil];
-
+      
       self.topViewController.navigationItem.backBarButtonItem = backItem;
     }
     else
     {
       self.topViewController.navigationItem.backBarButtonItem = nil;
     }
-
+    
     NSNumber *backButtonHidden = actionParams[@"backButtonHidden"];
     BOOL backButtonHiddenBool = backButtonHidden ? [backButtonHidden boolValue] : NO;
     if (backButtonHiddenBool)
     {
       viewController.navigationItem.hidesBackButton = YES;
     }
-
+    
     NSArray *leftButtons = actionParams[@"leftButtons"];
     if (leftButtons)
     {
       [self setButtons:leftButtons viewController:viewController side:@"left" animated:NO];
     }
-
+    
     NSArray *rightButtons = actionParams[@"rightButtons"];
     if (rightButtons)
     {
       [self setButtons:rightButtons viewController:viewController side:@"right" animated:NO];
     }
-
+    
     NSString *animationType = actionParams[@"animationType"];
     if ([animationType isEqualToString:@"fade"])
     {
       CATransition *transition = [CATransition animation];
       transition.duration = 0.25;
       transition.type = kCATransitionFade;
-
+      
       [self.view.layer addAnimation:transition forKey:kCATransition];
       [self pushViewController:viewController animated:NO];
     }
@@ -222,7 +193,7 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
     }
     return;
   }
-
+  
   // pop
   if ([performAction isEqualToString:@"pop"])
   {
@@ -232,7 +203,7 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
       CATransition *transition = [CATransition animation];
       transition.duration = 0.25;
       transition.type = kCATransitionFade;
-
+      
       [self.view.layer addAnimation:transition forKey:kCATransition];
       [self popViewControllerAnimated:NO];
     }
@@ -242,7 +213,7 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
     }
     return;
   }
-
+  
   // popToRoot
   if ([performAction isEqualToString:@"popToRoot"])
   {
@@ -252,7 +223,7 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
       CATransition *transition = [CATransition animation];
       transition.duration = 0.25;
       transition.type = kCATransitionFade;
-
+      
       [self.view.layer addAnimation:transition forKey:kCATransition];
       [self popToRootViewControllerAnimated:NO];
     }
@@ -262,22 +233,22 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
     }
     return;
   }
-
+  
   // resetTo
   if ([performAction isEqualToString:@"resetTo"])
   {
     NSString *component = actionParams[@"component"];
     if (!component) return;
-
+    
     NSMutableDictionary *passProps = [actionParams[@"passProps"] mutableCopy];
     passProps[@"commantType"] = @"resetTo";
     NSDictionary *navigatorStyle = actionParams[@"style"];
-
+    
     RCCViewController *viewController = [[RCCViewController alloc] initWithComponent:component passProps:passProps navigatorStyle:navigatorStyle globalProps:nil bridge:bridge];
     viewController.controllerId = passProps[@"screenInstanceID"];
-
+    
     viewController.navigationItem.hidesBackButton = YES;
-
+    
     [self processTitleView:viewController
                      props:actionParams
                      style:navigatorStyle];
@@ -286,22 +257,22 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
     {
       [self setButtons:leftButtons viewController:viewController side:@"left" animated:NO];
     }
-
+    
     NSArray *rightButtons = actionParams[@"rightButtons"];
     if (rightButtons)
     {
       [self setButtons:rightButtons viewController:viewController side:@"right" animated:NO];
     }
-
+    
     BOOL animated = actionParams[@"animated"] ? [actionParams[@"animated"] boolValue] : YES;
-
+    
     NSString *animationType = actionParams[@"animationType"];
     if ([animationType isEqualToString:@"fade"])
     {
       CATransition *transition = [CATransition animation];
       transition.duration = 0.25;
       transition.type = kCATransitionFade;
-
+      
       [self.view.layer addAnimation:transition forKey:kCATransition];
       [self setViewControllers:@[viewController] animated:NO];
     }
@@ -311,18 +282,18 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
     }
     return;
   }
-
+  
   // setButtons
   if ([performAction isEqualToString:@"setButtons"])
   {
     NSArray *buttons = actionParams[@"buttons"];
     BOOL animated = actionParams[@"animated"] ? [actionParams[@"animated"] boolValue] : YES;
     NSString *side = actionParams[@"side"] ? actionParams[@"side"] : @"left";
-
+    
     [self setButtons:buttons viewController:self.topViewController side:side animated:animated];
     return;
   }
-
+  
   // setTitle
   if ([performAction isEqualToString:@"setTitle"] || [performAction isEqualToString:@"setTitleImage"])
   {
@@ -332,39 +303,39 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
                      style:navigatorStyle];
     return;
   }
-
+  
   // toggleNavBar
   if ([performAction isEqualToString:@"setHidden"]) {
     NSNumber *animated = actionParams[@"animated"];
     BOOL animatedBool = animated ? [animated boolValue] : YES;
-
+    
     NSNumber *setHidden = actionParams[@"hidden"];
     BOOL isHiddenBool = setHidden ? [setHidden boolValue] : NO;
-
+    
     RCCViewController *topViewController = ((RCCViewController*)self.topViewController);
     topViewController.navigatorStyle[@"navBarHidden"] = setHidden;
     [topViewController setNavBarVisibilityChange:animatedBool];
-
+    
   }
-
+  
   // setStyle
   if ([performAction isEqualToString:@"setStyle"])
   {
-
+    
     NSDictionary *navigatorStyle = actionParams;
-
+    
     // merge the navigatorStyle of our parent
     if ([self.topViewController isKindOfClass:[RCCViewController class]])
     {
       RCCViewController *parent = (RCCViewController*)self.topViewController;
       NSMutableDictionary *mergedStyle = [NSMutableDictionary dictionaryWithDictionary:parent.navigatorStyle];
-
+      
       // there are a few styles that we don't want to remember from our parent (they should be local)
       [mergedStyle setValuesForKeysWithDictionary:navigatorStyle];
       navigatorStyle = mergedStyle;
-
+      
       parent.navigatorStyle = navigatorStyle;
-
+      
       [parent setStyleOnInit];
       [parent updateStyle];
     }
@@ -415,37 +386,37 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
     else continue;
     objc_setAssociatedObject(barButtonItem, &CALLBACK_ASSOCIATED_KEY, button[@"onPress"], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [barButtonItems addObject:barButtonItem];
-
+    
     NSString *buttonId = button[@"id"];
     if (buttonId)
     {
       objc_setAssociatedObject(barButtonItem, &CALLBACK_ASSOCIATED_ID, buttonId, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-
+    
     NSNumber *disabled = button[@"disabled"];
     BOOL disabledBool = disabled ? [disabled boolValue] : NO;
     if (disabledBool) {
       [barButtonItem setEnabled:NO];
     }
-
+    
     NSNumber *disableIconTintString = button[@"disableIconTint"];
     BOOL disableIconTint = disableIconTintString ? [disableIconTintString boolValue] : NO;
     if (disableIconTint) {
       [barButtonItem setImage:[barButtonItem.image imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal]];
     }
-
+    
     NSString *testID = button[@"testID"];
     if (testID)
     {
       barButtonItem.accessibilityIdentifier = testID;
     }
   }
-
+  
   if ([side isEqualToString:@"left"])
   {
     [viewController.navigationItem setLeftBarButtonItems:barButtonItems animated:animated];
   }
-
+  
   if ([side isEqualToString:@"right"])
   {
     [viewController.navigationItem setRightBarButtonItems:barButtonItems animated:animated];
@@ -464,9 +435,9 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
                                                                 subtitle:props[@"subtitle"]
                                                           titleImageData:props[@"titleImage"]
                                                            isSetSubtitle:isSetSubtitleBool];
-
+  
   [titleViewHelper setup:style];
-
+  
 }
 
 - (UIStatusBarStyle)preferredStatusBarStyle {
@@ -476,7 +447,7 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
 - (void)pushViewController:(UIViewController *)viewController animated:(BOOL)animated
 {
   NSLog(@"Attempting, transitioning: %@ rendering: %@", @(_transitioning), @(_rendering));
-
+  
   // Do not attempt to block rendering if this is the first
   // view controller. Not having a _queuedViewController signals
   // we should block the navigation push until React Native
@@ -487,102 +458,29 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
     _queuedViewController = @{ @"viewController": viewController, @"animated": @(animated) };
     NSLog(@"Queued, transitioning: %@ rendering: %@", @(_transitioning), @(_rendering));
   }
-
+  
   // Guard against a transition or render if already in process
   if(_transitioning || _rendering) {
     NSLog(@"Blocked, transitioning: %@ rendering: %@", @(_transitioning), @(_rendering));
     return;
   }
-
+  
   _transitioning = YES;
   _queuedViewController = nil;
   NSLog(@"Pushing, transitioning: %@ rendering: %@", @(_transitioning), @(_rendering));
   [super pushViewController:viewController animated:animated];
 }
 
-#pragma mark - UIPanGestureRecognizer
-
-- (void)pan:(UIPanGestureRecognizer*)recognizer
-{
-  UIView *view = self.navigationController.view;
-  if (recognizer.state == UIGestureRecognizerStateBegan) {
-    if (self.navigationController.viewControllers.count > 1 && !self.duringAnimation) {
-      self.interactionController = [[UIPercentDrivenInteractiveTransition alloc] init];
-      self.interactionController.completionCurve = UIViewAnimationCurveEaseOut;
-
-      [self.navigationController popViewControllerAnimated:YES];
-    }
-  } else if (recognizer.state == UIGestureRecognizerStateChanged) {
-    CGPoint translation = [recognizer translationInView:view];
-    // Cumulative translation.x can be less than zero because user can pan slightly to the right and then back to the left.
-    CGFloat d = translation.x > 0 ? translation.x / CGRectGetWidth(view.bounds) : 0;
-    [self.interactionController updateInteractiveTransition:d];
-  } else if (recognizer.state == UIGestureRecognizerStateEnded || recognizer.state == UIGestureRecognizerStateCancelled) {
-    if ([recognizer velocityInView:view].x > 0) {
-      [self.interactionController finishInteractiveTransition];
-    } else {
-      [self.interactionController cancelInteractiveTransition];
-      // When the transition is cancelled, `navigationController:didShowViewController:animated:` isn't called, so we have to maintain `duringAnimation`'s state here too.
-      self.duringAnimation = NO;
-    }
-    self.interactionController = nil;
-  }
-}
-
-#pragma mark - UIGestureRecognizerDelegate
-
--(BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
-  if (self.navigationController.viewControllers.count > 1) {
-    return YES;
-  }
-  return NO;
-}
 
 #pragma mark - UINavigationControllerDelegate
 
-- (id<UIViewControllerAnimatedTransitioning>)navigationController:(UINavigationController *)navigationController animationControllerForOperation:(UINavigationControllerOperation)operation fromViewController:(UIViewController *)fromVC toViewController:(UIViewController *)toVC
-{
-  if (operation == UINavigationControllerOperationPop) {
-    return self.animator;
-  }
-  return nil;
-}
-
-- (id<UIViewControllerInteractiveTransitioning>)navigationController:(UINavigationController *)navigationController interactionControllerForAnimationController:(id<UIViewControllerAnimatedTransitioning>)animationController
-{
-  return self.interactionController;
-}
 
 -(void)navigationController:(UINavigationController *)navigationController willShowViewController:(UIViewController *)viewController animated:(BOOL)animated {
-  if (animated) {
-    self.duringAnimation = YES;
-  }
   [viewController setNeedsStatusBarAppearanceUpdate];
 }
 
 - (void)navigationController:(UINavigationController *)navigationController didShowViewController:(UIViewController *)viewController animated:(BOOL)animated
 {
-
-  self.duringAnimation = NO;
-  BOOL enabled = YES;
-  if ([viewController isKindOfClass:[RCCViewController class]]) {
-    NSDictionary *navigatorStyle = ((RCCViewController *)viewController).navigatorStyle;
-    NSNumber *disabledBackGesture = navigatorStyle[@"disabledBackGesture"];
-    NSNumber *enabledBackGestureFullScreen = navigatorStyle[@"enabledBackGestureFullScreen"];
-    BOOL isFullScreenBackGestureEnabled = enabledBackGestureFullScreen ? [enabledBackGestureFullScreen boolValue] : NO;
-    if (!isFullScreenBackGestureEnabled) {
-      enabled = NO;
-    }
-    else {
-      enabled = disabledBackGesture ? ![disabledBackGesture boolValue] : YES;
-    }
-  }
-  if (navigationController.viewControllers.count <= 1) {
-    enabled = NO;
-  }
-  self.panRecognizer.enabled = enabled;
-
-
   NSLog(@"didShowViewController, transitioning: %@ rendering: %@", @(_transitioning), @(_rendering));
 
   dispatch_async(dispatch_get_main_queue(), ^{
@@ -590,7 +488,7 @@ NSString const *CALLBACK_ASSOCIATED_ID = @"RCCNavigationController.CALLBACK_ASSO
     if (_queuedViewController != nil) {
       RCCViewController* vc = _queuedViewController[@"viewController"];
       BOOL animated = [_queuedViewController[@"animated"] boolValue];
-
+      
       [self pushViewController:vc animated:animated];
     }
   });
