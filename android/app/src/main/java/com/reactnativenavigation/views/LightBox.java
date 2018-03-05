@@ -29,15 +29,18 @@ public class LightBox extends Dialog implements DialogInterface.OnDismissListene
     private Runnable onDismissListener;
     private ContentView content;
     private RelativeLayout lightBox;
+    private boolean cancelable;
 
     public LightBox(AppCompatActivity activity, Runnable onDismissListener, LightBoxParams params) {
         super(activity, R.style.LightBox);
         this.onDismissListener = onDismissListener;
+        this.cancelable =!params.overrideBackPress; 
         setOnDismissListener(this);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         createContent(activity, params);
-        setCancelable(!params.overrideBackPress);
+        setCancelable(cancelable);
         getWindow().setWindowAnimations(android.R.style.Animation);
+        getWindow().setSoftInputMode(params.adjustSoftInput);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
@@ -92,13 +95,19 @@ public class LightBox extends Dialog implements DialogInterface.OnDismissListene
         animateHide();
     }
 
+    @Override public void onBackPressed() {
+        if (cancelable) {
+            hide();
+        }
+    }
+
     @Override
     public void onDismiss(DialogInterface dialogInterface) {
         onDismissListener.run();
     }
 
     public void destroy() {
-        content.unmountReactView();
+        //content.unmountReactView();
         dismiss();
     }
 
