@@ -10,7 +10,7 @@ const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSou
 
 import * as newPlatformSpecific from './../platformSpecific';
 
-function startSingleScreenApp(params) {
+async function startSingleScreenApp(params) {
   const screen = _.cloneDeep(params.screen);
   if (!screen.screen) {
     console.error('startSingleScreenApp(params): screen must include a screen property');
